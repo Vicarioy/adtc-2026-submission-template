@@ -14,3 +14,10 @@ __pycache__/
 # Local profiler output
 submission.json
 audit.json
+llama-bin/
+llama.zip
+llama-b*.zip
+*.gguf
+*.gqif
+model/
+mode1/
