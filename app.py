@@ -5,13 +5,13 @@ import os
 # --- Page config ---
 # Sets browser tab title and page layout
 st.set_page_config(
-    page_title="HealthBridge Nigeria",
+    page_title="HealthBridge",
     page_icon="🏥",
     layout="centered"
 )
 
 # --- Header ---
-st.title("🏥 HealthBridge Nigeria")
+st.title("🏥 HealthBridge")
 st.caption("Offline AI Health Assistant — No internet required")
 st.markdown("---")
 
@@ -29,7 +29,7 @@ if not os.path.exists(LLAMA_CLI):
 # --- System prompt ---
 # Tells model its role as health assistant
 SYSTEM_PROMPT = (
-    "You are HealthBridge Nigeria, an offline health education assistant. "
+    "You are HealthBridge, an offline health education assistant. "
     "You help users understand symptoms, common treatments, and when to seek "
     "urgent medical care. You provide clear, simple health information for "
     "educational purposes only. You do not replace a doctor. "
