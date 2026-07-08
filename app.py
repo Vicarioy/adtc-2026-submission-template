@@ -81,7 +81,7 @@ if user_input:
                     cmd,
                     capture_output=True,   # grab stdout and stderr
                     text=True,             # return as string not bytes
-                    timeout=120            # give up after 2 minutes
+                    timeout=600            # give up after 5 minutes
                 )
 
                 # Get response text from stdout
