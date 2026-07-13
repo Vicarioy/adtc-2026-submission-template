@@ -89,7 +89,7 @@ if user_input:
                 st.code(" ".join(cmd), language="bash")
 
                 # Run with a longer timeout (120s to test)
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
                 stdout = result.stdout.strip()
                 stderr = result.stderr.strip()
 
@@ -103,7 +103,7 @@ if user_input:
                     response = f"**No output from model.**\nReturn code: {result.returncode}"
 
             except subprocess.TimeoutExpired:
-                response = "⏱️ Command timed out after 120 seconds. The model might be too slow or stuck. Try a shorter question or increase timeout."
+                response = "⏱️ Command timed out after 300 seconds. The model might be too slow or stuck. Try a shorter question or increase timeout."
             except FileNotFoundError as e:
                 response = f"❌ Executable not found: {e.filename}. Check your `LLAMA_CLI` path."
             except Exception as e:
