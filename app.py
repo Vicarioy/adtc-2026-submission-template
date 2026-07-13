@@ -1,10 +1,8 @@
 import streamlit as st
-import subprocess
 import os
-import asyncio
+from llama_cpp import Llama
 
 # --- Page config ---
-# Sets browser tab title and page layout
 st.set_page_config(
     page_title="HealthBridge",
     page_icon="🏥",
@@ -17,23 +15,10 @@ st.caption("Offline AI Health Assistant — No internet required")
 st.markdown("---")
 
 # --- Model path ---
-# Finds model relative to where app.py lives
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "model", "qwen2.5-1.5b-instruct-q4_k_m.gguf")
 
-#if not os.path.exists(MODEL_PATH):
-    #st.error(f"Model file not found at `{MODEL_PATH}`. Please run `bash download_model.sh`.")
-    #st.stop()
-
-# Try llama-bin in repo first
-LLAMA_CLI = os.path.join(BASE_DIR, "llama-bin", "llama-cli.exe")
-
-# If not found, use absolute path directly
-if not os.path.exists(LLAMA_CLI):
-    LLAMA_CLI = r"C:\Users\user\adtc-2026-submission-template\llama-bin\llama-cli.exe"
-
 # --- System prompt ---
-# Tells model its role as health assistant
 SYSTEM_PROMPT = (
     "You are HealthBridge, an offline health education assistant. "
     "You help users understand symptoms, common treatments, and when to seek "
@@ -42,19 +27,37 @@ SYSTEM_PROMPT = (
     "Always answer health questions helpfully and clearly."
 )
 
+# --- Initialize Model (Cached to load only once) ---
+@st.cache_resource
+def load_model():
+    if not os.path.exists(MODEL_PATH):
+        st.error(f"Model file not found at `{MODEL_PATH}`.")
+        st.stop()
+    
+    # Loads the GGUF model directly into Python memory
+    return Llama(
+        model_path=MODEL_PATH,
+        n_ctx=2048,      # Context window
+        n_threads=4,     # Safe core count
+        verbose=False    # Prevents terminal stream pollution
+    )
+
+try:
+    llm = load_model()
+except Exception as e:
+    st.error(f"Failed to initialize model: {e}")
+    st.stop()
+
 # --- Chat history ---
-# st.session_state persists data across reruns within same session
 if "messages" not in st.session_state:
     st.session_state.messages = []
 
 # --- Display past messages ---
-# Loops through saved messages and renders each one
 for message in st.session_state.messages:
     with st.chat_message(message["role"]):
         st.markdown(message["content"])
 
 # --- User input box ---
-# st.chat_input = text box pinned to bottom of page
 user_input = st.chat_input("Ask a health question...")
 
 if user_input:
@@ -65,79 +68,35 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
-
-# --- Call model ---
+    # --- Call model natively ---
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
             try:
-                # Ensure we have a valid string fallback for input
-                safe_input = str(user_input) if user_input else ""
+                # Format using standard ChatML format that Qwen explicitly expects
+                formatted_prompt = (
+                    f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n"
+                    f"<|im_start|>user\n{user_input}<|im_end|>\n"
+                    f"<|im_start|>assistant\n"
+                )
+
+                # Generate the inference response natively
+                output = llm(
+                    formatted_prompt,
+                    max_tokens=400,
+                    temperature=0.7,
+                    stop=["<|im_end|>"] # Cleanly cuts generation off at end of response
+                )
                 
-                # Clean prompt formatting
-                formatted_prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{safe_input}<|im_end|>\n<|im_start|>assistant\n"
+                response = output["choices"][0]["text"].strip()
 
-                cmd = [
-                    str(LLAMA_CLI),
-                    "-m", str(MODEL_PATH),
-                    "-p", formatted_prompt,
-                    "-n", "400",
-                    "-c", "2048",
-                    "-t", "4",
-                ]
-
-                # This keeps the output inside Streamlit's safe thread-isolated context
-                st.sidebar.text(f"Last executed: {' '.join(cmd)}")
-
-                async def run_llama_async():
-                    proc = await asyncio.create_subprocess_exec(
-                        *cmd,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE,
-                        stdin=asyncio.subprocess.PIPE
-                    )
-                    try:
-                        # communicate(input=b"") instantly signals EOF to close stdin
-                        stdout_bytes, stderr_bytes = await asyncio.wait_for(
-                            proc.communicate(input=b""), 
-                            timeout=300
-                        )
-                        return proc.returncode, stdout_bytes.decode(errors='ignore').strip(), stderr_bytes.decode(errors='ignore').strip()
-                    except asyncio.TimeoutError:
-                        try:
-                            proc.kill()
-                        except:
-                            pass
-                        raise TimeoutError
-
-                # Run safely inside Streamlit's operational event loop
-                returncode, stdout, stderr = asyncio.run(run_llama_async())
-
-                if returncode != 0:
-                    response = (
-                        f"**Command failed with return code {returncode}**\n\n"
-                        f"stderr:\n```\n{stderr}\n```"
-                    )
-                elif stdout:
-                    # Clean up interactive menu boilerplate if present
-                    if "available commands:" in stdout:
-                        # Extract text after the final assistant tag block if needed
-                        response = stdout.split("<|im_start|>assistant")[-1].strip()
-                    else:
-                        response = stdout
-                else:
-                    response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
-
-            except TimeoutError:
-                response = "⏱️ Command timed out after 300 seconds."
-            except FileNotFoundError as e:
-                response = f"❌ Executable not found: {e.filename}"
             except Exception as e:
-                response = f"❌ Unexpected error: {e}"
+                response = f"❌ Inference error: {e}"
 
-            # Display response safely
+            # Display response
             st.markdown(response)
-            # Save assistant response to history
-            st.session_state.messages.append({"role": "assistant", "content": response})
+
+    # Save assistant response to history
+    st.session_state.messages.append({"role": "assistant", "content": response})
 
 # --- Sidebar info ---
 with st.sidebar:
@@ -151,6 +110,5 @@ with st.sidebar:
     st.markdown("⚠️ *This tool provides health education only. Always consult a qualified doctor for medical advice.*")
     st.markdown("---")
     if st.button("Clear conversation"):
-        # Wipe chat history
         st.session_state.messages = []
         st.rerun()
