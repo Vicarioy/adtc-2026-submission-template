@@ -85,7 +85,8 @@ if user_input:
                     "-t", "4",
                 ]
 
-                print("Running command async:", " ".join(cmd))  # debug
+                # This keeps the output inside Streamlit's safe thread-isolated context
+                st.sidebar.text(f"Last executed: {' '.join(cmd)}")
 
                 async def run_llama_async():
                     proc = await asyncio.create_subprocess_exec(
