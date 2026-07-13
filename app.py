@@ -67,11 +67,6 @@ if user_input:
     # --- Call model ---
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
-            # --- Before the try block, ensure model file exists ---
-            if not os.path.exists(MODEL_PATH):
-                st.error(f"Model file not found at `{MODEL_PATH}`. Please run `bash download_model.sh`.")
-                st.stop()
-
             try:
                 cmd = [
                     LLAMA_CLI,
