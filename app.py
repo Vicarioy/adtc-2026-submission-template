@@ -1,6 +1,7 @@
 import streamlit as st
 import subprocess
 import os
+import asyncio
 
 # --- Page config ---
 # Sets browser tab title and page layout
@@ -64,6 +65,7 @@ if user_input:
     with st.chat_message("user"):
         st.markdown(user_input)
 
+
     # --- Call model ---
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
@@ -79,21 +81,31 @@ if user_input:
 
                 print("Running command:", " ".join(cmd))  # debug
 
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                    stdin=subprocess.DEVNULL
-                )
+                # Define an async function to run the process
+                async def run_llama():
+                    proc = await asyncio.create_subprocess_exec(
+                        *cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE
+                    )
+                    # Wait for completion with a timeout
+                    try:
+                        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=300)
+                        return proc.returncode, stdout_bytes.decode().strip(), stderr_bytes.decode().strip()
+                    except asyncio.TimeoutError:
+                        try:
+                            proc.kill()
+                        except:
+                            pass
+                        raise TimeoutError
 
-                stdout = result.stdout.strip()
-                stderr = result.stderr.strip()
+                # Run the async task inside Streamlit's loop
+                returncode, stdout, stderr = asyncio.run(run_llama())
 
                 # Show error details if the command failed
-                if result.returncode != 0:
+                if returncode != 0:
                     response = (
-                        f"**Command failed with return code {result.returncode}**\n\n"
+                        f"**Command failed with return code {returncode}**\n\n"
                         f"stderr:\n```\n{stderr}\n```"
                     )
                 elif stdout:
@@ -101,7 +113,7 @@ if user_input:
                 else:
                     response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
 
-            except subprocess.TimeoutExpired:
+            except TimeoutError:
                 response = "⏱️ Command timed out after 300 seconds."
             except FileNotFoundError as e:
                 response = f"❌ Executable not found: {e.filename}"
@@ -110,7 +122,6 @@ if user_input:
 
             # Display response
             st.markdown(response)
-
     # Save assistant response to history
     st.session_state.messages.append({"role": "assistant", "content": response})
 
