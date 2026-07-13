@@ -67,60 +67,76 @@ if user_input:
 
 
 # --- Call model ---
-with st.chat_message("assistant"):
-    with st.spinner("HealthBridge is thinking..."):
-        try:
-            # 1. Cleanly define your command with strictly hardcoded strings
-            cmd = [
+    with st.chat_message("assistant"):
+        with st.spinner("HealthBridge is thinking..."):
+            try:
+                # Ensure we have a valid string fallback for input
+                safe_input = str(user_input) if user_input else ""
+                
+                # Clean prompt formatting
+                formatted_prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{safe_input}<|im_end|>\n<|im_start|>assistant\n"
+
+                cmd = [
                     str(LLAMA_CLI),
                     "-m", str(MODEL_PATH),
-                    "-p", f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start|>assistant\n",
+                    "-p", formatted_prompt,
                     "-n", "400",
                     "-c", "2048",
-                    "-t", "4"
-            ]
+                    "-t", "4",
+                ]
 
-            print("Running command:", " ".join(cmd))  # debug
+                print("Running command async:", " ".join(cmd))  # debug
 
-                # 2. Use input="" to signal EOF to stop llama-cli from entering interactive chat loop
-            result = subprocess.run(
-                    cmd,
-                    capture_output=True,
-                    text=True,
-                    timeout=300,
-                    input=""  # Instantly closes stdin pipe
-            )
+                async def run_llama_async():
+                    proc = await asyncio.create_subprocess_exec(
+                        *cmd,
+                        stdout=asyncio.subprocess.PIPE,
+                        stderr=asyncio.subprocess.PIPE,
+                        stdin=asyncio.subprocess.PIPE
+                    )
+                    try:
+                        # communicate(input=b"") instantly signals EOF to close stdin
+                        stdout_bytes, stderr_bytes = await asyncio.wait_for(
+                            proc.communicate(input=b""), 
+                            timeout=300
+                        )
+                        return proc.returncode, stdout_bytes.decode(errors='ignore').strip(), stderr_bytes.decode(errors='ignore').strip()
+                    except asyncio.TimeoutError:
+                        try:
+                            proc.kill()
+                        except:
+                            pass
+                        raise TimeoutError
 
-            stdout = result.stdout.strip()
-            stderr = result.stderr.strip()
+                # Run safely inside Streamlit's operational event loop
+                returncode, stdout, stderr = asyncio.run(run_llama_async())
 
-            # Clean up llama.cpp's terminal text if it outputs the interactive instructions
-            if "available commands:" in stdout:
-                # Splits by the prompt markers to grab only the final response text
-                if "Welcome to llama.cpp" in stdout:
-                    pass 
+                if returncode != 0:
+                    response = (
+                        f"**Command failed with return code {returncode}**\n\n"
+                        f"stderr:\n```\n{stderr}\n```"
+                    )
+                elif stdout:
+                    # Clean up interactive menu boilerplate if present
+                    if "available commands:" in stdout:
+                        # Extract text after the final assistant tag block if needed
+                        response = stdout.split("<|im_start|>assistant")[-1].strip()
+                    else:
+                        response = stdout
+                else:
+                    response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
 
-            if result.returncode != 0:
-                response = (
-                    f"**Command failed with return code {result.returncode}**\n\n"
-                    f"stderr:\n```\n{stderr}\n```"
-                )
-            elif stdout:
-                response = stdout
-            else:
-                response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
+            except TimeoutError:
+                response = "⏱️ Command timed out after 300 seconds."
+            except FileNotFoundError as e:
+                response = f"❌ Executable not found: {e.filename}"
+            except Exception as e:
+                response = f"❌ Unexpected error: {e}"
 
-        except subprocess.TimeoutExpired:
-            response = "⏱️ Command timed out after 300 seconds."
-        except FileNotFoundError as e:
-            response = f"❌ Executable not found: {e.filename}"
-        except Exception as e:
-            response = f"❌ Unexpected error: {e}"
-
-        # Display response
-        st.markdown(response)
-    # Save assistant response to history
-    st.session_state.messages.append({"role": "assistant", "content": response})
+            # Display response safely
+            st.markdown(response)
+            # Save assistant response to history
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
 # --- Sidebar info ---
 with st.sidebar:
