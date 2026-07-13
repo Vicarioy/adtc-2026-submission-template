@@ -65,6 +65,14 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
             try:
+                # First, verify files exist
+                if not os.path.exists(MODEL_PATH):
+                    st.error(f"Model file not found at {MODEL_PATH}")
+                    st.stop()
+                if not os.path.exists(LLAMA_CLI):
+                    st.error(f"llama-cli not found at {LLAMA_CLI}")
+                    st.stop()
+
                 cmd = [
                     LLAMA_CLI,
                     "-m", MODEL_PATH,
@@ -76,21 +84,26 @@ if user_input:
                     "--log-disable",
                 ]
 
-                # Show the exact command in the chat for debugging
+                # Display the full command for debugging
+                st.text("Full command:")
                 st.code(" ".join(cmd), language="bash")
 
-                # Run with a shorter timeout (60s) to avoid waiting forever
-                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                # Run with a longer timeout (120s to test)
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
                 stdout = result.stdout.strip()
                 stderr = result.stderr.strip()
+
+                # Show stderr even if there is stdout (for warnings)
+                if stderr:
+                    st.warning(f"Model stderr:\n```\n{stderr}\n```")
 
                 if stdout:
                     response = stdout
                 else:
-                    response = f"**No output from model.**\n\nError (stderr):\n```\n{stderr}\n```\nReturn code: {result.returncode}"
+                    response = f"**No output from model.**\nReturn code: {result.returncode}"
 
             except subprocess.TimeoutExpired:
-                response = "⏱️ Command timed out after 60 seconds. The model might be too slow or stuck."
+                response = "⏱️ Command timed out after 120 seconds. The model might be too slow or stuck. Try a shorter question or increase timeout."
             except FileNotFoundError as e:
                 response = f"❌ Executable not found: {e.filename}. Check your `LLAMA_CLI` path."
             except Exception as e:
