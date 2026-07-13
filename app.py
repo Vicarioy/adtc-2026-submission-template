@@ -64,8 +64,12 @@ if user_input:
     # --- Call model ---
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
+            # --- Before the try block, ensure model file exists ---
+            if not os.path.exists(MODEL_PATH):
+                st.error(f"Model file not found at `{MODEL_PATH}`. Please run `bash download_model.sh`.")
+                st.stop()
+
             try:
-            # Build command (remove --no-display-prompt and --log-disable for simplicity)
                 cmd = [
                     LLAMA_CLI,
                     "-m", MODEL_PATH,
@@ -75,16 +79,16 @@ if user_input:
                     "-c", "2048",
                 ]
 
-                # Debug: print the full command to the terminal (so you can copy it)
-                print(" ".join(cmd))  # This will show in the terminal where Streamlit runs
+                # Debug: print the actual command (will appear in terminal)
+                print("Running command:", " ".join(cmd))
 
-                # Run with stdin=DEVNULL to prevent interactive mode hang
+                # Run with stdin=DEVNULL to avoid interactive hang
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
                     text=True,
                     timeout=300,
-                    stdin=subprocess.DEVNULL   # ⬅️ This is the key fix
+                    stdin=subprocess.DEVNULL
                 )
 
                 stdout = result.stdout.strip()
@@ -96,7 +100,7 @@ if user_input:
                     response = f"**No output from model.**\nReturn code: {result.returncode}\n\nError:\n```\n{stderr}\n```"
 
             except subprocess.TimeoutExpired:
-                response = "⏱️ Command timed out after 300 seconds."
+                response = "⏱️ Command timed out after 300 seconds. Consider reducing `-n` or using a faster model."
             except FileNotFoundError as e:
                 response = f"❌ Executable not found: {e.filename}"
             except Exception as e:
