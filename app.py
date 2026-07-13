@@ -70,10 +70,12 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
             try:
+                formatted_prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start| assistant\n"
                 cmd = [
                     LLAMA_CLI,
                     "-m", MODEL_PATH,
                     "--system-prompt", SYSTEM_PROMPT,
+                    "-t", "4",
                     "-p", user_input,
                     "-n", "400",
                     "-c", "2048",
