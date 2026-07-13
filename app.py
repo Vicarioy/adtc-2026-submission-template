@@ -82,10 +82,8 @@ if user_input:
                     "-c", "2048",
                 ]
 
-                # Debug: print the actual command (will appear in terminal)
-                print("Running command:", " ".join(cmd))
+                print("Running command:", " ".join(cmd))  # debug
 
-                # Run with stdin=DEVNULL to avoid interactive hang
                 result = subprocess.run(
                     cmd,
                     capture_output=True,
@@ -97,13 +95,19 @@ if user_input:
                 stdout = result.stdout.strip()
                 stderr = result.stderr.strip()
 
-                if stdout:
+                # Show error details if the command failed
+                if result.returncode != 0:
+                    response = (
+                        f"**Command failed with return code {result.returncode}**\n\n"
+                        f"stderr:\n```\n{stderr}\n```"
+                    )
+                elif stdout:
                     response = stdout
                 else:
-                    response = f"**No output from model.**\nReturn code: {result.returncode}\n\nError:\n```\n{stderr}\n```"
+                    response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
 
             except subprocess.TimeoutExpired:
-                response = "⏱️ Command timed out after 300 seconds. Consider reducing `-n` or using a faster model."
+                response = "⏱️ Command timed out after 300 seconds."
             except FileNotFoundError as e:
                 response = f"❌ Executable not found: {e.filename}"
             except Exception as e:
