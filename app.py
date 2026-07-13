@@ -75,11 +75,11 @@ if user_input:
                     LLAMA_CLI,
                     "-m", MODEL_PATH,
                     "--system-prompt", SYSTEM_PROMPT,
-                    "-t", "4",
-                    "-p", f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start|>assistant\n",
+                    "-p", user_input,
                     "-n", "400",
                     "-c", "2048",
-                    "--no-interactive"
+                    "-t", "4",
+                    "--temp", "0.7",
                 ]
 
                 print("Running command:", " ".join(cmd))  # debug
