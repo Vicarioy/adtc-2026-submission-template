@@ -70,26 +70,25 @@ if user_input:
 with st.chat_message("assistant"):
     with st.spinner("HealthBridge is thinking..."):
         try:
+            # 1. Cleanly define your command with strictly hardcoded strings
             cmd = [
-                LLAMA_CLI,
-                "-m", MODEL_PATH,
-                "--system-prompt", SYSTEM_PROMPT,
-                "-p", user_input,
-                "-n", "400",
-                "-c", "2048",
-                "-t", "4",
+                    str(LLAMA_CLI),
+                    "-m", str(MODEL_PATH),
+                    "-p", f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start|>assistant\n",
+                    "-n", "400",
+                    "-c", "2048",
+                    "-t", "4"
             ]
 
             print("Running command:", " ".join(cmd))  # debug
 
-            # Passing input="" forces stdin to close immediately after launching, 
-            # which breaks llama-cli out of its interactive loop!
+                # 2. Use input="" to signal EOF to stop llama-cli from entering interactive chat loop
             result = subprocess.run(
-                cmd,
-                capture_output=True,
-                text=True,
-                timeout=300,
-                input=""  # <--- Send empty input string to close the stdin pipe
+                    cmd,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    input=""  # Instantly closes stdin pipe
             )
 
             stdout = result.stdout.strip()
