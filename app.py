@@ -76,9 +76,10 @@ if user_input:
                     "-m", MODEL_PATH,
                     "--system-prompt", SYSTEM_PROMPT,
                     "-t", "4",
-                    "-p", user_input,
+                    "-p", f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start|>assistant\n",
                     "-n", "400",
                     "-c", "2048",
+                    "--no-interactive"
                 ]
 
                 print("Running command:", " ".join(cmd))  # debug
