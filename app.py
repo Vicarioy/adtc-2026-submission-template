@@ -65,41 +65,36 @@ if user_input:
     with st.chat_message("assistant"):
         with st.spinner("HealthBridge is thinking..."):
             try:
-                # Build command list to run llama-cli
-                # Each item = one part of the terminal command
                 cmd = [
                     LLAMA_CLI,
-                    "-m", MODEL_PATH,          # model file path
-                    "--system-prompt", SYSTEM_PROMPT,  # role instruction
-                    "-p", user_input,          # user's question
-                    "-n", "400",               # max tokens to generate
-                    "--no-display-prompt",     # hide prompt from output
-                    "-c", "2048",              # context window size
-                    "--log-disable",           # suppress llama.cpp logs
+                    "-m", MODEL_PATH,
+                    "--system-prompt", SYSTEM_PROMPT,
+                    "-p", user_input,
+                    "-n", "400",
+                    "--no-display-prompt",
+                    "-c", "2048",
+                    "--log-disable",
                 ]
 
-                # Run command, capture output, timeout after 120 seconds
-                result = subprocess.run(
-                    cmd,
-                    capture_output=True,   # grab stdout and stderr
-                    text=True,             # return as string not bytes
-                    timeout=600            # give up after 5 minutes
-                )
+                # Show the exact command in the chat for debugging
+                st.code(" ".join(cmd), language="bash")
 
-                # Get response text from stdout
-                response = result.stdout.strip()
+                # Run with a shorter timeout (60s) to avoid waiting forever
+                result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+                stdout = result.stdout.strip()
+                stderr = result.stderr.strip()
 
-                # If empty output, show error instead
-                if not response:
-                    response = "Sorry, I could not generate a response. Please try again."
+                if stdout:
+                    response = stdout
+                else:
+                    response = f"**No output from model.**\n\nError (stderr):\n```\n{stderr}\n```\nReturn code: {result.returncode}"
 
             except subprocess.TimeoutExpired:
-                # Model took too long
-                response = "Response timed out. Please try a shorter question."
-
-            except FileNotFoundError:
-                # llama-cli binary not found
-                response = f"Error: llama-cli not found at {LLAMA_CLI}. Run download_model.sh first."
+                response = "⏱️ Command timed out after 60 seconds. The model might be too slow or stuck."
+            except FileNotFoundError as e:
+                response = f"❌ Executable not found: {e.filename}. Check your `LLAMA_CLI` path."
+            except Exception as e:
+                response = f"❌ Unexpected error: {e}"
 
             # Display response
             st.markdown(response)
