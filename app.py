@@ -20,9 +20,9 @@ st.markdown("---")
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 MODEL_PATH = os.path.join(BASE_DIR, "model", "qwen2.5-1.5b-instruct-q4_k_m.gguf")
 
-if not os.path.exists(MODEL_PATH):
-    st.error(f"Model file not found at `{MODEL_PATH}`. Please run `bash download_model.sh`.")
-    st.stop()
+#if not os.path.exists(MODEL_PATH):
+    #st.error(f"Model file not found at `{MODEL_PATH}`. Please run `bash download_model.sh`.")
+    #st.stop()
 
 # Try llama-bin in repo first
 LLAMA_CLI = os.path.join(BASE_DIR, "llama-bin", "llama-cli.exe")
