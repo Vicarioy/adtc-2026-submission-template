@@ -18,13 +18,15 @@ st.markdown("---")
 # --- Model path ---
 # Finds model relative to where app.py lives
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, "model", "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+#MODEL_PATH = os.path.join(BASE_DIR, "model", "qwen2.5-1.5b-instruct-q4_k_m.gguf")
+MODEL_PATH = r"C:\Users\user\adtc-2026-submission-template\model\qwen2.5-1.5b-instruct-q4_k_m.gguf"
 
-# --- llama-cli path ---
-# Looks for llama-cli in llama-bin folder first, then system PATH
+# Try llama-bin in repo first
 LLAMA_CLI = os.path.join(BASE_DIR, "llama-bin", "llama-cli.exe")
+
+# If not found, use absolute path directly
 if not os.path.exists(LLAMA_CLI):
-    LLAMA_CLI = "llama-cli"  # fallback: system PATH (for Linux judges)
+    LLAMA_CLI = r"C:\Users\user\adtc-2026-submission-template\llama-bin\llama-cli.exe"
 
 # --- System prompt ---
 # Tells model its role as health assistant
