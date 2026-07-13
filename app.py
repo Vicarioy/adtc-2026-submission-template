@@ -66,65 +66,60 @@ if user_input:
         st.markdown(user_input)
 
 
-    # --- Call model ---
-    with st.chat_message("assistant"):
-        with st.spinner("HealthBridge is thinking..."):
-            try:
-                formatted_prompt = f"<|im_start|>system\n{SYSTEM_PROMPT}<|im_end|>\n<|im_start|>user\n{user_input}<|im_end|>\n<|im_start| assistant\n"
-                cmd = [
-                    LLAMA_CLI,
-                    "-m", MODEL_PATH,
-                    "--system-prompt", SYSTEM_PROMPT,
-                    "-p", user_input,
-                    "-n", "400",
-                    "-c", "2048",
-                    "-t", "4",
-                    "--temp", "0.7",
-                ]
+# --- Call model ---
+with st.chat_message("assistant"):
+    with st.spinner("HealthBridge is thinking..."):
+        try:
+            cmd = [
+                LLAMA_CLI,
+                "-m", MODEL_PATH,
+                "--system-prompt", SYSTEM_PROMPT,
+                "-p", user_input,
+                "-n", "400",
+                "-c", "2048",
+                "-t", "4",
+            ]
 
-                print("Running command:", " ".join(cmd))  # debug
+            print("Running command:", " ".join(cmd))  # debug
 
-                # Define an async function to run the process
-                async def run_llama():
-                    proc = await asyncio.create_subprocess_exec(
-                        *cmd,
-                        stdout=asyncio.subprocess.PIPE,
-                        stderr=asyncio.subprocess.PIPE
-                    )
-                    # Wait for completion with a timeout
-                    try:
-                        stdout_bytes, stderr_bytes = await asyncio.wait_for(proc.communicate(), timeout=300)
-                        return proc.returncode, stdout_bytes.decode().strip(), stderr_bytes.decode().strip()
-                    except asyncio.TimeoutError:
-                        try:
-                            proc.kill()
-                        except:
-                            pass
-                        raise TimeoutError
+            # Passing input="" forces stdin to close immediately after launching, 
+            # which breaks llama-cli out of its interactive loop!
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=300,
+                input=""  # <--- Send empty input string to close the stdin pipe
+            )
 
-                # Run the async task inside Streamlit's loop
-                returncode, stdout, stderr = asyncio.run(run_llama())
+            stdout = result.stdout.strip()
+            stderr = result.stderr.strip()
 
-                # Show error details if the command failed
-                if returncode != 0:
-                    response = (
-                        f"**Command failed with return code {returncode}**\n\n"
-                        f"stderr:\n```\n{stderr}\n```"
-                    )
-                elif stdout:
-                    response = stdout
-                else:
-                    response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
+            # Clean up llama.cpp's terminal text if it outputs the interactive instructions
+            if "available commands:" in stdout:
+                # Splits by the prompt markers to grab only the final response text
+                if "Welcome to llama.cpp" in stdout:
+                    pass 
 
-            except TimeoutError:
-                response = "⏱️ Command timed out after 300 seconds."
-            except FileNotFoundError as e:
-                response = f"❌ Executable not found: {e.filename}"
-            except Exception as e:
-                response = f"❌ Unexpected error: {e}"
+            if result.returncode != 0:
+                response = (
+                    f"**Command failed with return code {result.returncode}**\n\n"
+                    f"stderr:\n```\n{stderr}\n```"
+                )
+            elif stdout:
+                response = stdout
+            else:
+                response = f"**No output from model.**\n\nstderr:\n```\n{stderr}\n```"
 
-            # Display response
-            st.markdown(response)
+        except subprocess.TimeoutExpired:
+            response = "⏱️ Command timed out after 300 seconds."
+        except FileNotFoundError as e:
+            response = f"❌ Executable not found: {e.filename}"
+        except Exception as e:
+            response = f"❌ Unexpected error: {e}"
+
+        # Display response
+        st.markdown(response)
     # Save assistant response to history
     st.session_state.messages.append({"role": "assistant", "content": response})
 
