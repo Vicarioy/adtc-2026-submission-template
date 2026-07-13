@@ -46,6 +46,7 @@ Target user: community health workers, patients, students, and caregivers in Nig
 - Evaluation target: ADTC Standard Laptop (i5 10th-12th gen, 8GB DDR4, integrated GPU, Ubuntu 22.04)
 - Zero network dependencies during inference — model downloaded via download_model.sh, all subsequent runs fully offline
 - Model file not committed to git — downloaded fresh by evaluator via public Hugging Face URL
+- Bulding the interface was a massive problem due to streamlit not running the model and getting time off without fulfilling it's objectives
 
 ---
 
